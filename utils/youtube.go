@@ -66,6 +66,7 @@ func (y *Youtube) StartDownload(destFile string) error {
 			break
 		}
 	}
+	fmt.Println("download finished")
 	return err
 }
 
@@ -176,6 +177,7 @@ func (y *Youtube) Write(p []byte) (n int, err error) {
 	}
 	return
 }
+
 func (y *Youtube) videoDLWorker(destFile string, target string) error {
 	resp, err := y.client(target)
 	if err != nil {
@@ -212,10 +214,14 @@ func (y *Youtube) log(logText string) {
 }
 
 func (y *Youtube) client(target string) (resp *http.Response, err error) {
-	proxy := func(_ *http.Request) (*url.URL, error) {
-		return url.Parse(y.Agency)
+	transport := &http.Transport{}
+
+	if y.Agency != "" {
+		proxy := func(_ *http.Request) (*url.URL, error) {
+			return url.Parse(y.Agency)
+		}
+		transport = &http.Transport{Proxy: proxy}
 	}
-	transport := &http.Transport{Proxy: proxy}
 	client := &http.Client{Transport: transport}
 	return client.Get(target)
 }
