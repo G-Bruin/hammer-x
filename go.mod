@@ -35,4 +35,8 @@ replace (
 	launchpad.net/gocheck => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 )
 
-require golang.org/x/net v0.0.0-00010101000000-000000000000
+require (
+	github.com/schollz/progressbar v1.0.0
+	github.com/schollz/progressbar/v2 v2.14.0
+	golang.org/x/net v0.0.0-00010101000000-000000000000
+)
