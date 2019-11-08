@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"hammer-x/utils"
 	"io"
-	"io/ioutil"
 	"log"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -101,7 +99,6 @@ func (y *Youtube) parseVideoInfo() error {
 		err = errors.New(fmt.Sprint("no stream map found in the server's answer"))
 		return err
 	}
-	fmt.Println(streamMap[0])
 	// read each stream
 	streamsList := strings.Split(streamMap[0], ",")
 	var streams []stream
@@ -124,20 +121,8 @@ func (y *Youtube) parseVideoInfo() error {
 
 func (y *Youtube) getVideoInfo() error {
 	target_url := "http://youtube.com/get_video_info?video_id=" + y.VideoID
-	y.log(fmt.Sprintf("url: %s", target_url))
-
-	resp, err := utils.Curl("GET", target_url, "", nil)
-	if err != nil {
-		return err
-	}
-	if resp.StatusCode != 200 {
-		return err
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	y.videoInfo = string(body)
+	body, _ := utils.Get(target_url, "", nil)
+	y.videoInfo = body
 	return nil
 }
 
@@ -179,14 +164,10 @@ func (y *Youtube) Write(p []byte) (n int, err error) {
 }
 
 func (y *Youtube) videoDLWorker(destFile string, target string) error {
-
-	resp, err := utils.Curl("GET", target, "", nil)
-	if err != nil {
-		log.Printf("Http.Get\nerror: %s\ntarget: %s\n", err, target)
-		return err
-	}
+	resp, err := utils.Request("GET", target, nil, nil)
 	defer resp.Body.Close()
-	y.contentLength = float64(resp.ContentLength)
+	contentLength, _ := utils.Size(target, "")
+	y.contentLength = float64(contentLength)
 	if resp.StatusCode != 200 {
 		log.Printf("reading answer: non 200[code=%v] status code received: '%v'", resp.StatusCode, err)
 		return errors.New("non 200 status code received")
@@ -212,17 +193,4 @@ func (y *Youtube) log(logText string) {
 	if y.DebugMode {
 		log.Println(logText)
 	}
-}
-
-func (y *Youtube) client(target string) (resp *http.Response, err error) {
-	transport := &http.Transport{}
-
-	if y.Agency != "" {
-		proxy := func(_ *http.Request) (*url.URL, error) {
-			return url.Parse(y.Agency)
-		}
-		transport = &http.Transport{Proxy: proxy}
-	}
-	client := &http.Client{Transport: transport}
-	return client.Get(target)
 }

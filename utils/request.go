@@ -1,19 +1,25 @@
 package utils
 
 import (
+	"compress/flate"
+	"compress/gzip"
+	"errors"
+	"fmt"
 	"golang.org/x/net/proxy"
 	"hammer-x/config"
+	"io"
+	"io/ioutil"
 	"net"
 	"net/http"
-	"net/url"
 	netURL "net/url"
+	"strconv"
 	"strings"
 	"time"
 )
 
 // Request base request
-func Curl(
-	method, url string, data string, headers map[string]string,
+func Request(
+	method, url string, body io.Reader, headers map[string]string,
 ) (*http.Response, error) {
 	transport := &http.Transport{
 		DisableCompression: true,
@@ -44,17 +50,7 @@ func Curl(
 		Transport: transport,
 		Timeout:   15 * time.Minute,
 	}
-	var req *http.Request
-	var err error
-	if data == "" {
-		urlArr := strings.Split(url, "?")
-		if len(urlArr) == 2 {
-			url = urlArr[0] + "?" + getParseParam(urlArr[1])
-		}
-		req, err = http.NewRequest(method, url, nil)
-	} else {
-		req, err = http.NewRequest(method, url, strings.NewReader(data))
-	}
+	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, err
 	}
@@ -67,11 +63,6 @@ func Curl(
 	if _, ok := headers["Referer"]; !ok {
 		req.Header.Set("Referer", url)
 	}
-
-	res, err := client.Do(req)
-	defer res.Body.Close()
-	return res, err
-
 	//if config.Cookie != "" {
 	//	var cookie string
 	//	var cookies []*http.Cookie
@@ -92,8 +83,88 @@ func Curl(
 	//	req.Header.Set("Referer", config.Refer)
 	//}
 
+	var res *http.Response
+	res, err = client.Do(req)
+	if err != nil {
+		err = fmt.Errorf("request error: %v", err)
+	}
+	return res, nil
 }
 
-func getParseParam(param string) string {
-	return url.PathEscape(param)
+// Get get request
+func Get(url, refer string, headers map[string]string) (string, error) {
+	body, err := GetByte(url, refer, headers)
+	return string(body), err
+}
+
+// GetByte get request
+func GetByte(url, refer string, headers map[string]string) ([]byte, error) {
+	if headers == nil {
+		headers = map[string]string{}
+	}
+	if refer != "" {
+		headers["Referer"] = refer
+	}
+	res, err := Request(http.MethodGet, url, nil, headers)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	var reader io.ReadCloser
+	switch res.Header.Get("Content-Encoding") {
+	case "gzip":
+		reader, _ = gzip.NewReader(res.Body)
+	case "deflate":
+		reader = flate.NewReader(res.Body)
+	default:
+		reader = res.Body
+	}
+	defer reader.Close()
+
+	body, err := ioutil.ReadAll(reader)
+	if err != nil && err != io.EOF {
+		return nil, err
+	}
+	return body, nil
+}
+
+// Headers return the HTTP Headers of the url
+func Headers(url, refer string) (http.Header, error) {
+	headers := map[string]string{
+		"Referer": refer,
+	}
+	res, err := Request(http.MethodGet, url, nil, headers)
+	if err != nil {
+		return nil, err
+	}
+	return res.Header, nil
+}
+
+// Size get size of the url
+func Size(url, refer string) (int64, error) {
+	h, err := Headers(url, refer)
+	if err != nil {
+		return 0, err
+	}
+	s := h.Get("Content-Length")
+	if s == "" {
+		return 0, errors.New("Content-Length is not present")
+	}
+	size, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return size, nil
+}
+
+// ContentType get Content-Type of the url
+func ContentType(url, refer string) (string, error) {
+	h, err := Headers(url, refer)
+	if err != nil {
+		return "", err
+	}
+	s := h.Get("Content-Type")
+	// handle Content-Type like this: "text/html; charset=utf-8"
+	return strings.Split(s, ";")[0], nil
 }
