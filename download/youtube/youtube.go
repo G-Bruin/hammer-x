@@ -30,7 +30,7 @@ type Youtube struct {
 	Agency            string
 	videoInfo         string
 	DownloadPercent   chan int64
-	contentLength     float64
+	contentLength     int64
 	totalWrittenBytes float64
 	downloadLevel     float64
 }
@@ -154,22 +154,21 @@ func (y *Youtube) findVideoID(url string) error {
 
 func (y *Youtube) Write(p []byte) (n int, err error) {
 	n = len(p)
-	y.totalWrittenBytes = y.totalWrittenBytes + float64(n)
-	currentPercent := ((y.totalWrittenBytes / y.contentLength) * 100)
-	if (y.downloadLevel <= currentPercent) && (y.downloadLevel < 100) {
-		y.downloadLevel++
-		y.DownloadPercent <- int64(y.downloadLevel)
-	}
+	//y.totalWrittenBytes = y.totalWrittenBytes + float64(n)
+	//currentPercent := ((y.totalWrittenBytes / y.contentLength) * 100)
+	//if (y.downloadLevel <= currentPercent) && (y.downloadLevel < 100) {
+	//	y.downloadLevel++
+	//	y.DownloadPercent <- int64(y.downloadLevel)
+	//}
+
 	return
 }
 
 func (y *Youtube) videoDLWorker(destFile string, target string) error {
 	resp, err := utils.Request("GET", target, nil, nil)
 	defer resp.Body.Close()
-	contentLength, _ := utils.Size(target, "")
-	y.contentLength = float64(contentLength)
+	y.contentLength = resp.ContentLength
 	if resp.StatusCode != 200 {
-		log.Printf("reading answer: non 200[code=%v] status code received: '%v'", resp.StatusCode, err)
 		return errors.New("non 200 status code received")
 	}
 	err = os.MkdirAll(filepath.Dir(destFile), 0755)
@@ -181,7 +180,8 @@ func (y *Youtube) videoDLWorker(destFile string, target string) error {
 		return err
 	}
 	mw := io.MultiWriter(out, y)
-	_, err = io.Copy(mw, resp.Body)
+	src := &utils.PassThru{Reader: resp.Body, Length: y.contentLength}
+	_, err = io.Copy(mw, src)
 	if err != nil {
 		log.Println("download video err=", err)
 		return err

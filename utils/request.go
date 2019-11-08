@@ -151,11 +151,9 @@ func Size(url, refer string) (int64, error) {
 	if s == "" {
 		return 0, errors.New("Content-Length is not present")
 	}
-	size, err := strconv.ParseInt(s, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	return size, nil
+	size, _ := strconv.Atoi(s)
+	downloadSize := int64(size)
+	return downloadSize, nil
 }
 
 // ContentType get Content-Type of the url

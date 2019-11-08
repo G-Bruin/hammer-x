@@ -10,6 +10,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 func init() {
@@ -21,7 +22,34 @@ func init() {
 	flag.Usage = usage
 }
 
+const TOTAL = 20
+
 func main() {
+
+	var progress = 0
+	var position = 1
+Loop:
+	for {
+		if progress > 0 {
+			fmt.Printf("\033[%dA\033[K", position)
+		}
+
+		output := fmt.Sprintf(
+			"%s%s%s",
+			"progress: ",
+			strings.Repeat("=", progress),
+			strings.Repeat("-", TOTAL-progress),
+		)
+
+		fmt.Printf("%s \033[K\n", output)
+		//fmt.Printf("\033[%dA\033[K", 1)
+		if progress >= 20 {
+			break Loop
+		}
+		progress++
+		time.Sleep(time.Duration(200) * time.Millisecond)
+	}
+	return
 	flag.Parse()
 	download_url := config.Uri
 	usr, _ := user.Current()
