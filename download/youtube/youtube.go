@@ -1,8 +1,9 @@
-package utils
+package youtube
 
 import (
 	"errors"
 	"fmt"
+	"hammer-x/utils"
 	"io"
 	"io/ioutil"
 	"log"
@@ -125,11 +126,10 @@ func (y *Youtube) getVideoInfo() error {
 	target_url := "http://youtube.com/get_video_info?video_id=" + y.VideoID
 	y.log(fmt.Sprintf("url: %s", target_url))
 
-	resp, err := y.client(target_url)
+	resp, err := utils.Curl("GET", target_url, "", nil)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		return err
 	}
@@ -179,7 +179,8 @@ func (y *Youtube) Write(p []byte) (n int, err error) {
 }
 
 func (y *Youtube) videoDLWorker(destFile string, target string) error {
-	resp, err := y.client(target)
+
+	resp, err := utils.Curl("GET", target, "", nil)
 	if err != nil {
 		log.Printf("Http.Get\nerror: %s\ntarget: %s\n", err, target)
 		return err
