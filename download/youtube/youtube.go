@@ -141,7 +141,6 @@ func (y *Youtube) findVideoID(url string) error {
 			}
 		}
 	}
-	log.Printf("Found video id: '%s'", videoID)
 	y.VideoID = videoID
 	if strings.ContainsAny(videoID, "?&/<%=") {
 		return errors.New("invalid characters in video id")
@@ -167,14 +166,6 @@ func (y *Youtube) videoDLWorker(destFile string, target string) error {
 	if err != nil {
 		return err
 	}
-	//src := &utils.PassThru{Reader: resp.Body, Length: y.contentLength}
-	//bar := utils.Progressbar(resp.ContentLength)
-
-	//bar := progressbar.NewOptions(
-	//	int(resp.ContentLength),
-	//	progressbar.OptionSetBytes(int(resp.ContentLength)),
-	//	progressbar.OptionThrottle(10*time.Millisecond),
-	//)
 	bar := utils.Progressbar(resp.ContentLength)
 	mw := io.MultiWriter(out, bar)
 	_, err = io.Copy(mw, resp.Body)

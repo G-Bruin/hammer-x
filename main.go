@@ -26,12 +26,12 @@ func main() {
 		flag.Usage()
 		return
 	}
-
 	usr, _ := user.Current()
 	dir := fmt.Sprintf("%v/Movies/hammer-x", usr.HomeDir)
 	fmt.Println("download to dir is ", dir)
-	host := utils.FindDomain(config.Uri)
 
+	//解析地址来源
+	host := utils.FindDomain(config.Uri)
 	switch host {
 	case "youtube":
 		y := youtube.InitYoutube(config.Debug)
