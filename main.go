@@ -1,11 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	progressbar "github.com/schollz/progressbar/v2"
 	"hammer-x/config"
 	"hammer-x/download/youtube"
+	"hammer-x/utils"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -22,33 +27,74 @@ func init() {
 	flag.Usage = usage
 }
 
-const TOTAL = 20
-
 func main() {
 
-	var progress = 0
-	var position = 1
-Loop:
-	for {
-		if progress > 0 {
-			fmt.Printf("\033[%dA\033[K", position)
-		}
+	fmt.Println("downloading go1.12.5.linux-amd64.tar.gz")
+	defer os.Remove("go1.12.5.linux-amd64.tar.gz")
+	urlToGet := "https://dl.google.com/go/go1.12.5.linux-amd64.tar.gz"
+	req, _ := http.NewRequest("GET", urlToGet, nil)
+	resp, _ := http.DefaultClient.Do(req)
+	defer resp.Body.Close()
 
-		output := fmt.Sprintf(
-			"%s%s%s",
-			"progress: ",
-			strings.Repeat("=", progress),
-			strings.Repeat("-", TOTAL-progress),
-		)
+	var out io.Writer
+	f, _ := os.OpenFile("go1.12.5.linux-amd64.tar.gz", os.O_CREATE|os.O_WRONLY, 0644)
+	out = f
+	defer f.Close()
 
-		fmt.Printf("%s \033[K\n", output)
-		//fmt.Printf("\033[%dA\033[K", 1)
-		if progress >= 20 {
-			break Loop
-		}
-		progress++
-		time.Sleep(time.Duration(200) * time.Millisecond)
+	bar := progressbar.NewOptions(
+		int(resp.ContentLength),
+		progressbar.OptionSetBytes(int(resp.ContentLength)),
+		progressbar.OptionThrottle(10*time.Millisecond),
+	)
+	out = io.MultiWriter(out, bar)
+	io.Copy(out, resp.Body)
+	fmt.Println("done")
+	//bar := progressbar.NewOptions(
+	//	int(resp.ContentLength),
+	//	progressbar.OptionSetBytes(int(resp.ContentLength)),
+	//)
+	//out = io.MultiWriter(out, bar)
+	//io.Copy(out, resp.Body)
+	//	var progress = 0
+	//	var position = 1
+	//Loop:
+	//	for {
+	//		if progress > 0 {
+	//			fmt.Printf("\033[%dA\033[K", position)
+	//		}
+	//
+	//		output := fmt.Sprintf(
+	//			"%s%s%s",
+	//			"progress: ",
+	//			strings.Repeat("=", progress),
+	//			strings.Repeat("-", TOTAL-progress),
+	//		)
+	//
+	//		fmt.Printf("%s \033[K\n", output)
+	//		//fmt.Printf("\033[%dA\033[K", 1)
+	//		if progress >= 20 {
+	//			break Loop
+	//		}
+	//		progress++
+	//		time.Sleep(time.Duration(200) * time.Millisecond)
+	//	}
+
+	var src io.Reader    // Source file/url/etc
+	var dst bytes.Buffer // Destination file/buffer/etc
+
+	src = bytes.NewBufferString(strings.Repeat("Some random input data", 1000))
+
+	src = &utils.PassThru{Reader: src, Length: 22000}
+
+	fmt.Println("sadadsad")
+	count, err := io.Copy(&dst, src)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
 	}
+
+	fmt.Println("Transferred", count, "bytes")
+
 	return
 	flag.Parse()
 	download_url := config.Uri
