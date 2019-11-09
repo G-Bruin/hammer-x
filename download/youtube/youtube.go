@@ -40,11 +40,11 @@ func (y *Youtube) DecodeURL(url string) error {
 	if err != nil {
 		return fmt.Errorf("findVideoID error=%s", err)
 	}
-
 	err = y.getVideoInfo()
 	if err != nil {
 		return fmt.Errorf("getVideoInfo error=%s", err)
 	}
+
 	err = y.parseVideoInfo()
 	if err != nil {
 		return fmt.Errorf("parse video info failed, err=%s", err)
@@ -152,18 +152,6 @@ func (y *Youtube) findVideoID(url string) error {
 	return nil
 }
 
-func (y *Youtube) Write(p []byte) (n int, err error) {
-	n = len(p)
-	//y.totalWrittenBytes = y.totalWrittenBytes + float64(n)
-	//currentPercent := ((y.totalWrittenBytes / y.contentLength) * 100)
-	//if (y.downloadLevel <= currentPercent) && (y.downloadLevel < 100) {
-	//	y.downloadLevel++
-	//	y.DownloadPercent <- int64(y.downloadLevel)
-	//}
-
-	return
-}
-
 func (y *Youtube) videoDLWorker(destFile string, target string) error {
 	resp, err := utils.Request("GET", target, nil, nil)
 	defer resp.Body.Close()
@@ -179,9 +167,17 @@ func (y *Youtube) videoDLWorker(destFile string, target string) error {
 	if err != nil {
 		return err
 	}
-	mw := io.MultiWriter(out, y)
-	src := &utils.PassThru{Reader: resp.Body, Length: y.contentLength}
-	_, err = io.Copy(mw, src)
+	//src := &utils.PassThru{Reader: resp.Body, Length: y.contentLength}
+	//bar := utils.Progressbar(resp.ContentLength)
+
+	//bar := progressbar.NewOptions(
+	//	int(resp.ContentLength),
+	//	progressbar.OptionSetBytes(int(resp.ContentLength)),
+	//	progressbar.OptionThrottle(10*time.Millisecond),
+	//)
+	bar := utils.Progressbar(resp.ContentLength)
+	mw := io.MultiWriter(out, bar)
+	_, err = io.Copy(mw, resp.Body)
 	if err != nil {
 		log.Println("download video err=", err)
 		return err
