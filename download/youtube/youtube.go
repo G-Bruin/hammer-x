@@ -121,9 +121,9 @@ func (y *Youtube) parseVideoInfo() error {
 
 func (y *Youtube) getVideoInfo() error {
 	target_url := "http://youtube.com/get_video_info?video_id=" + y.VideoID
-	body, _ := utils.Get(target_url, "", nil)
+	body, err := utils.Get(target_url, "", nil)
 	y.videoInfo = body
-	return nil
+	return err
 }
 
 func (y *Youtube) findVideoID(url string) error {
